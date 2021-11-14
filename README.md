@@ -1,6 +1,6 @@
-# Akatsuki PP System
+# RealistikOsu PP System
 
-This is Akatsuki's pp system, a modified version of oppai-ng with relax in mind.
+This is RealistikOsu pp system, a modified version of oppai-ng with relax in mind.
 
 ## Usage
 
