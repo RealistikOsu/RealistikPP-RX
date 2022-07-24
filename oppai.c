@@ -2181,6 +2181,7 @@ int pp_std(ezpp_t ez) {
   switch (ez->beatmap_id)
   {
     case 1808605: /* Louder than steel [ok this is epic] */
+    case 1816169: /* Louder than steel [cipe si siht ko] */
       ez->pp *= 0.775f;
       break;
     case 1821147: /* over the top [Above the stars] */
