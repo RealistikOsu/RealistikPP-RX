@@ -2104,8 +2104,11 @@ int pp_std(ezpp_t ez) {
   }
 
   /* low ar bonus */
-  else if (ez->ar < 8.5f) {
-    ar_bonus += 0.025f * (8.5f - ez->ar);
+  else if (ez->ar < 8.0f) {
+    ar_bonus += 0.1f; /* always 10% base bonus */
+
+    /* 1% bonus increase per each AR below 7 */
+    ar_bonus += (7.0f - ez->ar) / 100.0f;
   }
 
   /* aim pp ---------------------------------------------------------- */
