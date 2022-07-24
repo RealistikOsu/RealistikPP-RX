@@ -2196,6 +2196,9 @@ int pp_std(ezpp_t ez) {
     case 1962833: /* Akatsuki compilation [ok this is akatsuki] */
       ez->pp *= 0.85f;
       break;
+    case 915210: /* quaver [Crescendo] */
+      ez-> pp *= 0.9f;
+      break;
     default:
       break;
   }
