@@ -2170,11 +2170,6 @@ int pp_std(ezpp_t ez) {
   if (ez->mods & MODS_NF) final_multiplier *= (float) al_max(0.9f, 1.0f - 0.2f * ez->nmiss);
   if (ez->mods & MODS_SO) final_multiplier *= 1.0 - pow((double)ez->nspinners / ez->nobjects, 0.85);
 
-  if ((ez->mods & MODS_DT) == 0 && (ez->mods & MODS_NC) == 0 && (ez->mods & MODS_HT) == 0)
-    ez->aim_pp *= 1.03f; /* 3% aim buff to non-DT */
-  else if ((ez->mods & MODS_DT || ez->mods & MODS_NC) && ez->mods & MODS_HR)
-    ez->aim_pp *= 1.025f; /* 2.5% aim buff to DTHR */
-
 	ez->pp = (float)(
     pow(
       pow(ez->aim_pp, 1.165f) +
