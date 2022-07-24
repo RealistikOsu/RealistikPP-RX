@@ -2175,7 +2175,7 @@ int pp_std(ezpp_t ez) {
 
 	ez->pp = (float)(
     pow(
-      pow(ez->aim_pp, 1.165f) +
+      pow(ez->aim_pp, 1.16f) +
       pow(ez->acc_pp, 1.15f),
       0.99f / 1.1f
     ) * final_multiplier
