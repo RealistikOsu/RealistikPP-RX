@@ -2188,6 +2188,7 @@ int pp_std(ezpp_t ez) {
       ez->pp *= 0.775f;
       break;
     case 1821147: /* over the top [Above the stars] */
+    case 1849420: /* Ascension to Heaven [The Gates of Heaven] */
       ez->pp *= 0.7f;
       break;
     case 1844776: /* Just press F [Parkour's ok this is epic] */
