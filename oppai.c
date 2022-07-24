@@ -562,6 +562,7 @@ struct ezpp {
   float aim_stars, aim_difficulty, aim_length_bonus;
   float speed_stars, speed_difficulty, speed_length_bonus;
   float pp, aim_pp, speed_pp, acc_pp;
+  int beatmap_id;
 
   /* parser */
   char section[64];
@@ -849,7 +850,14 @@ int p_metadata(ezpp_t ez, slice_t* line) {
     ez->creator = p_slicedup(ez, &value);
   } else if (!slice_cmp(&name, "Version")) {
     ez->version = p_slicedup(ez, &value);
+  } else if (!slice_cmp(&name, "BeatmapID"))
+  {
+    if (sscanf(value.start, "%d", &ez->beatmap_id) != 1)
+    {
+      return ERR_SYNTAX;
+    }
   }
+
   return n;
 }
 
@@ -2045,15 +2053,13 @@ int pp_std(ezpp_t ez) {
     (ez->nobjects > 2000 ? (float)log10(nobjects_over_2k) * 0.5f : 0.0f)
   );
 
-  /*float miss_penality_aim = 0.97 * pow(1 - pow((double)ez->nmiss / ez->nobjects, 0.775), ez->nmiss);
-  float miss_penality_speed = 0.97 * pow(1 - pow((double)ez->nmiss / ez->nobjects, 0.775f), pow(ez->nmiss, 0.875f));*/
-  float miss_penality = (float)pow(0.97f, ez->nmiss + (ez->n50 * 0.35f));
+  float miss_penality_aim = 0.97 * pow(1 - pow((double)ez->nmiss / ez->nobjects, 0.775), ez->nmiss);
 
   float combo_break = (float)pow(ez->combo, 0.8f) / (float)pow(ez->max_combo, 0.8f);
   float ar_bonus;
   float final_multiplier;
-  float aim_crosscheck;
   float acc_bonus, od_bonus;
+  float od_squared;
   float hd_bonus;
 
   /* acc used for pp is different in scorev1 because it ignores sliders */
@@ -2093,8 +2099,8 @@ int pp_std(ezpp_t ez) {
   ar_bonus = 1.0f;
 
   /* high ar bonus */
-  if (ez->ar > 10.70f) {
-    ar_bonus += 0.45f * (ez->ar - 10.70f);
+  if (ez->ar > 10.33f) {
+    ar_bonus += 0.2f * (ez->ar - 10.33f);
   }
 
   /* low ar bonus */
@@ -2105,7 +2111,7 @@ int pp_std(ezpp_t ez) {
   /* aim pp ---------------------------------------------------------- */
   ez->aim_pp = base_pp(ez->aim_stars);
   ez->aim_pp *= length_bonus;
-  ez->aim_pp *= miss_penality;
+  ez->aim_pp *= miss_penality_aim;
   ez->aim_pp *= combo_break;
   ez->aim_pp *= ar_bonus;
   /*ez->aim_pp *= 1.0f + (float)al_min(ar_bonus, ar_bonus * (ez->nobjects / 1000.0f));*/
@@ -2113,55 +2119,40 @@ int pp_std(ezpp_t ez) {
   /* hidden */
   hd_bonus = 1.0f;
   if (ez->mods & MODS_HD) {
-    hd_bonus += 0.04f * (12.0f - ez->ar);
+    hd_bonus += 0.05f * (11.0f - ez->ar);
   }
 
   ez->aim_pp *= hd_bonus;
 
   /* flashlight */
-  if (ez->mods & MODS_FL) {
-    float fl_bonus = 1.0f + (0.35f * al_min(1.0f, ez->nobjects / 200.0f));
-    if (ez->nobjects > 200) {
-      fl_bonus += 0.3f * al_min(1, (ez->nobjects - 200) / 300.0f);
+  float fl_bonus = 1.0f;
+  if (ez->mods & MODS_FL)
+  {
+    fl_bonus += 0.3f * al_min(1.0f, ez->nobjects / 200.0f);
+
+    if (ez->nobjects > 200)
+    {
+      fl_bonus += 0.25f * al_min(1, (ez->nobjects - 200) / 300.0f);
     }
-    if (ez->nobjects > 500) {
-      fl_bonus += (ez->nobjects - 500) / 1200.0f;
+
+    if (ez->nobjects > 500)
+    {
+      fl_bonus += (ez->nobjects - 500) / 1600.0f;
     }
-    ez->aim_pp *= fl_bonus;
   }
+
 
   /* acc bonus (bad aim can lead to bad acc) */
   acc_bonus = 0.5f + accuracy / 2.0f;
 
-  /* od bonus (high od requires better aim timing to acc) */
-  /*od_squared = (float)pow(ez->od, 2);
-  od_bonus = 0.98f + od_squared / 2500.0f;*/
-  od_bonus = (ez->od > 10.0f) ? 1.0f + (float)pow(10.0f - ez->od, 2.0f) / 12.5f : 1.0f;
 
-  /* akatsuki's main accuracy / aim pp crosscheck | 0.6 - 1.1 (max to 0.75)
-   * 0.6+\frac{x^{24}}{2}
-   */
-  aim_crosscheck = al_max(0.75f, 0.6f + (float)pow(real_acc, 3.0f) / 2.0f);
+  /* od bonus (high od requires better aim timing to acc) */
+  od_squared = (float)pow(ez->od, 2);
+  od_bonus = 0.98f + od_squared / 2500.0f;
 
   ez->aim_pp *= acc_bonus;
   ez->aim_pp *= od_bonus;
-  ez->aim_pp *= aim_crosscheck;
-
-  /* speed pp -------------------------------------------------------- */
-  ez->speed_pp = base_pp(ez->speed_stars);
-  /*ez->speed_pp *= length_bonus;
-  ez->speed_pp *= miss_penality;
-  ez->speed_pp *= combo_break;
-  if (ez->ar > 10.33f) ez->speed_pp *= ar_bonus;
-  ez->speed_pp *= hd_bonus;*/
-
-  /* scale the speed value with accuracy slightly */                  
-  /*ez->speed_pp *= (0.95f + od_squared / 750) * (float)pow(accuracy, (14.5 - al_max(ez->od, 8)) / 2);*/
-  /*ez->speed_pp *= 0.02f + accuracy;*/
-
-  /* it's important to also consider accuracy difficulty when doing that */               
-  /*ez->speed_pp *= (float) pow(0.98f, ez->n50 < ez->nobjects / 500.0f ? 0.00 : ez->n50 - ez->nobjects / 500.0f);*/
-  /*ez->speed_pp *= 0.96f + (float)pow(ez->od, 2) / 1600.0f;*/
+  ez->aim_pp *= fl_bonus;
 
   /* acc pp ---------------------------------------------------------- */
   /* arbitrary values tom crafted out of trial and error */
@@ -2172,20 +2163,43 @@ int pp_std(ezpp_t ez) {
   ez->acc_pp *= al_min(1.15f, (float)pow(ncircles / 1000.0f, 0.3f));
 
   if (ez->mods & MODS_HD) ez->acc_pp *= 1.08f;
-  /*if (ez->mods & MODS_FL) ez->acc_pp *= 1.02f;*/
+  if (ez->mods & MODS_FL) ez->acc_pp *= 1.02f;
 
   /* total pp -------------------------------------------------------- */
-  /*final_multiplier = (ez->mods & MODS_RX) ? 1.04f : 1.12f;
-  if (ez->mods & MODS_NF) final_multiplier *= 0.90f;
-  if (ez->mods & MODS_SO) final_multiplier *= 0.95f;*/
+  final_multiplier = 1.12f;
+  if (ez->mods & MODS_NF) final_multiplier *= (float) al_max(0.9f, 1.0f - 0.2f * ez->nmiss);
+  if (ez->mods & MODS_SO) final_multiplier *= 1.0 - pow((double)ez->nspinners / ez->nobjects, 0.85);
+
+  if ((ez->mods & MODS_DT) == 0 && (ez->mods & MODS_NC) == 0 && (ez->mods & MODS_HT) == 0)
+    ez->aim_pp *= 1.03f; /* 3% aim buff to non-DT */
+  else if ((ez->mods & MODS_DT || ez->mods & MODS_NC) && ez->mods & MODS_HR)
+    ez->aim_pp *= 1.025f; /* 2.5% aim buff to DTHR */
 
 	ez->pp = (float)(
     pow(
-      pow(ez->aim_pp, 1.158f) +
-      pow(ez->acc_pp, 1.186f),
+      pow(ez->aim_pp, 1.165f) +
+      pow(ez->acc_pp, 1.15f),
       0.99f / 1.1f
-    )
+    ) * final_multiplier
   );
+
+  switch (ez->beatmap_id)
+  {
+    case 1808605: /* Louder than steel [ok this is epic] */
+      ez->pp *= 0.775f;
+      break;
+    case 1821147: /* over the top [Above the stars] */
+      ez->pp *= 0.7f;
+      break;
+    case 1844776: /* Just press F [Parkour's ok this is epic] */
+      ez->pp *= 0.6f;
+      break;
+    case 1962833: /* Akatsuki compilation [ok this is akatsuki] */
+      ez->pp *= 0.85f;
+      break;
+    default:
+      break;
+  }
 
   ez->accuracy_percent = accuracy * 100.0f;
 
